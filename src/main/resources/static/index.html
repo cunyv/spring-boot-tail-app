@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时日志监控系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .button-group {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        #downloadBtn {
+            background-color: #008CBA;
+            color: white;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        
+        .status.connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        
+        .status.disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        
+        .status.error {
+            background-color: #fcf8e3;
+            color: #8a6d3b;
+            border: 1px solid #faebcc;
+        }
+        
+        #logContainer {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #000;
+            color: #00FF00;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            border-radius: 4px;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .error-details {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-left: 3px solid #ff0000;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>实时日志监控系统</h1>
+        
+        <div class="section">
+            <div class="section-title">日志文件信息</div>
+            <div class="input-group">
+                <label for="filePath">日志文件路径:</label>
+                <input type="text" id="filePath" placeholder="例如: /var/log/app.log">
+                <div class="help-text">要监控的日志文件的完整路径</div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="startBtn">开始监控</button>
+            <button id="stopBtn" disabled>停止监控</button>
+            <button id="downloadBtn" disabled>下载文件</button>
+        </div>
+        
+        <div id="status" class="status disconnected">
+            状态: 未连接
+        </div>
+        
+        <div id="logContainer">
+            日志内容将在此显示...
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        
+        document.getElementById('startBtn').addEventListener('click', startTailing);
+        document.getElementById('stopBtn').addEventListener('click', stopTailing);
+        document.getElementById('downloadBtn').addEventListener('click', downloadFile);
+        
+        function startTailing() {
+            const filePath = document.getElementById('filePath').value.trim();
+            
+            if (!filePath) {
+                alert('请输入日志文件路径');
+                return;
+            }
+            
+            // 关闭已有的连接
+            if (socket) {
+                socket.close();
+            }
+            
+            // 创建新的WebSocket连接
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            socket = new WebSocket(wsProtocol + window.location.host + '/logtail');
+            
+            socket.onopen = function(event) {
+                updateStatus('已连接到服务器', 'connected');
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('downloadBtn').disabled = false;
+                
+                // 发送文件路径到服务器
+                socket.send(filePath);
+            };
+            
+            socket.onmessage = function(event) {
+                const message = event.data;
+                const logContainer = document.getElementById('logContainer');
+                
+                if (message.startsWith('ERROR:')) {
+                    updateStatus('连接错误', 'error');
+                    // 显示详细错误信息
+                    const errorDetails = document.createElement('div');
+                    errorDetails.className = 'error-details';
+                    errorDetails.textContent = message;
+                    logContainer.innerHTML = '';
+                    logContainer.appendChild(errorDetails);
+                } else if (message.startsWith('STARTED:')) {
+                    logContainer.innerHTML = '';
+                    updateStatus(message, 'connected');
+                } else {
+                    // 添加新日志内容
+                    logContainer.innerHTML += message;
+                    // 滚动到底部
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            };
+            
+            socket.onclose = function(event) {
+                updateStatus('连接已断开', 'disconnected');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            };
+            
+            socket.onerror = function(error) {
+                updateStatus('连接错误: ' + error, 'error');
+            };
+        }
+        
+        function stopTailing() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            
+            updateStatus('已停止监控', 'disconnected');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+        
+        function downloadFile() {
+            const filePath = document.getElementById('filePath').value.trim();
+            
+            if (!filePath) {
+                alert('请输入日志文件路径');
+                return;
+            }
+            
+            // 构造下载URL
+            const downloadUrl = '/download?filePath=' + encodeURIComponent(filePath);
+            window.location.href = downloadUrl;
+        }
+        
+        function updateStatus(message, type) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = '状态: ' + message;
+            statusElement.className = 'status ' + type;
+        }
+        
+        // 页面关闭时断开连接
+        window.addEventListener('beforeunload', function() {
+            if (socket) {
+                socket.close();
+            }
+        });
+    </script>
+</body>
+</html>
