@@ -1,8 +1,4 @@
-# Spring Boot 实时日志监控系统## 部署建议
-
-1. **直接部署方式**：将应用直接部署在需要监控日志的服务器上，应用可以直接访问本地日志文件
-2. **文件访问权限**：确保运行应用的用户有权限读取需要监控的日志文件
-3. **生产环境安全**：在生产环境中，应配置适当的安全措施，如网络访问控制、身份验证等
+# Spring Boot 实时日志监控系统
 
 这是一个基于Spring Boot的实时日志监控系统，提供类似Unix `tail -f`命令的功能，可以直接在服务器上部署并监控本地日志文件。
 
@@ -27,17 +23,22 @@ spring-boot-tail-app/
 ├── src/
 │   ├── main/
 │   │   ├── java/
-│   │   │   └── top/allhere/logMonitoring/
-│   │   │       ├── Application.java           # 主应用入口
-│   │   │       ├── WebSocketConfig.java       # WebSocket配置
-│   │   │       ├── LogTailWebSocketHandler.java # WebSocket处理器
-│   │   │       └── LogController.java         # REST控制器
+│   │   │   └── top/allhere/logmonitoring/
+│   │   │       ├── Application.java              # 主应用入口
+│   │   │       ├── config/
+│   │   │       │   └── WebSocketConfig.java      # WebSocket配置
+│   │   │       ├── controller/
+│   │   │       │   └── LogController.java        # REST控制器
+│   │   │       ├── websocket/
+│   │   │       │   └── LogTailWebSocketHandler.java # WebSocket处理器
+│   │   │       ├── service/                      # 业务逻辑层（预留）
+│   │   │       └── common/                       # 公共类（预留）
 │   │   └── resources/
-│   │       ├── application.properties         # 应用配置
+│   │       ├── application.properties            # 应用配置
 │   │       └── static/
-│   │           └── index.html                # 前端界面
-├── pom.xml                                   # Maven配置文件
-└── README.md                                 # 项目说明文件
+│   │           └── index.html                    # 前端界面
+├── pom.xml                                      # Maven配置文件
+└── README.md                                    # 项目说明文件
 ```
 
 ## 安装和运行
@@ -66,14 +67,14 @@ mvn spring-boot:run
 java -jar target/spring-boot-tail-app-1.0.0.jar
 ```
 
-应用默认运行在 8080 端口。
+应用默认运行在 8091 端口。
 
 ## 使用方法
 
 ### 通过Web界面使用
 
 1. 将应用部署到目标服务器上
-2. 打开浏览器访问 `http://localhost:8080` (或相应的服务器地址)
+2. 打开浏览器访问 `http://localhost:8091` (或相应的服务器地址)
 3. 在输入框中输入要监控的日志文件完整路径
 4. 点击"开始监控"按钮开始实时监控
 5. 点击"停止监控"按钮停止监控
@@ -107,7 +108,8 @@ GET /download?filePath=/var/log/app.log
 
 在 [application.properties](file://D:/project/spring-boot-tail-app/src/main/resources/application.properties) 文件中可以配置以下参数:
 
-- `server.port`: 应用运行端口，默认为8080
+- `server.port`: 应用运行端口，默认为8091
+- `server.address`: 应用绑定的网络地址，默认为0.0.0.0（绑定所有网络接口）
 - `logging.level.*`: 日志级别配置
 - `spring.servlet.multipart.max-file-size`: 文件上传最大大小
 - `spring.servlet.multipart.max-request-size`: 请求最大大小
@@ -122,6 +124,13 @@ GET /download?filePath=/var/log/app.log
 > 3. 部署在内网环境中
 > 4. 使用HTTPS协议
 
+## 部署建议
+
+1. **直接部署方式**：将应用直接部署在需要监控日志的服务器上，应用可以直接访问本地日志文件
+2. **文件访问权限**：确保运行应用的用户有权限读取需要监控的日志文件
+3. **生产环境安全**：在生产环境中，应配置适当的安全措施，如网络访问控制、身份验证等
+4. **端口配置**：确保服务器防火墙和云服务安全组允许应用端口的访问
+
 ## 扩展功能
 
 您可以基于此项目进一步扩展功能：
@@ -131,5 +140,3 @@ GET /download?filePath=/var/log/app.log
 3. 添加日志搜索和过滤功能
 4. 实现日志文件管理（删除、归档等）
 5. 添加邮件或短信告警功能
-6. 使用密钥认证替代密码认证
-7. 添加连接池管理SSH连接
